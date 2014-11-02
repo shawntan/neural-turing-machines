@@ -54,13 +54,13 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 
 
 if __name__ == "__main__":
-	input_size = 10
-	mem_size   = 20
-	mem_width  = 15
+	input_size = 8
+	mem_size   = 128
+	mem_width  = 20
 	output_size = input_size
-	acc_gradient,train_acc = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20])
-	for _ in xrange(100):
-		for _ in xrange(100):
+	acc_gradient,train_acc = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
+	for _ in xrange(30):
+		for _ in xrange(5):
 			inputs,outputs = tasks.copy(input_size,20)
 			cost = acc_gradient(inputs,outputs)
 			print cost

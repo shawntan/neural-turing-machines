@@ -28,13 +28,8 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 	heads = ["read","erase","add"]
 
 	for h in heads:
-
-		if h != "read":
-			P["W_hidden_%s"%h]   = 0. * U.initial_weights(layer_sizes[-1],mem_width)
-
-		P["W_hidden_%s_key"%h]   = 0. * U.initial_weights(layer_sizes[-1],mem_width)
+		P["W_hidden_%s_key"%h]   = U.initial_weights(layer_sizes[-1],mem_width)
 		P["W_hidden_%s_shift"%h] = 0. * U.initial_weights(layer_sizes[-1],mem_size)
-		P["b_%s"%h]       = 0. * U.initial_weights(mem_width)
 		P["b_%s_key"%h]   = 0. * U.initial_weights(mem_width)
 		P["b_%s_shift"%h] = 0. * U.initial_weights(mem_size)
 
@@ -44,6 +39,11 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 		P["b_%s_beta"%h]  = 0.
 		P["b_%s_gamma"%h] = 0.
 		P["b_%s_g"%h]     = 0.
+
+		if h != "read":
+			P["W_hidden_%s"%h] = 0. * U.initial_weights(layer_sizes[-1],mem_width)
+			P["b_%s"%h]        = 0. * U.initial_weights(mem_width)
+
 
 		HeadParams = namedtuple('HeadParams','key shift beta gamma g head')
 
@@ -66,8 +66,10 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 		
 		head_params = []
 		for h in heads:
-			# key 
+			
+			# key
 			key_t = T.dot(fin_hidden,P["W_hidden_%s_key"%h]) + P["b_%s_key"%h]
+
 			# shift
 			shift_t = U.vector_softmax(T.dot(fin_hidden,P["W_hidden_%s_shift"%h]) + P["b_%s_shift"%h])
 			shift_t.name = "%s_shift_t"%h
@@ -78,6 +80,7 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 
 			beta_t  = (_beta_t > 0) * _beta_t
 			gamma_t = (_gamma_t > 0 ) * _gamma_t + 1
+
 			g_t      = T.nnet.sigmoid(T.dot(fin_hidden,P["W_hidden_%s_g"%h]) + P["b_%s_g"%h])
 			if h != "read":
 				head_t = T.nnet.sigmoid(T.dot(fin_hidden,P["W_hidden_%s"%h]) + P["b_%s"%h])
