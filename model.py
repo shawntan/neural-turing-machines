@@ -22,9 +22,9 @@ def build_step(P,controller,mem_size,mem_width,similarity=cosine_sim):
 	circ_convolve = scipy.linalg.circulant(np.arange(mem_size)).T
 	P.memory_init = 0.1 * np.random.randn(mem_size,mem_width)
 	memory_init   = P.memory_init
-	P.read_weight_init  = np.zeros((mem_size,))
-	P.add_weight_init   = np.zeros((mem_size,))
-	P.erase_weight_init = np.zeros((mem_size,))
+	P.read_weight_init  = 0.1 * np.random.randn(mem_size)
+	P.add_weight_init   = 0.1 * np.random.randn(mem_size)
+	P.erase_weight_init = 0.1 * np.random.randn(mem_size)
 	read_weight_init  = U.vector_softmax(P.read_weight_init)
 	erase_weight_init = U.vector_softmax(P.erase_weight_init)
 	add_weight_init   = U.vector_softmax(P.add_weight_init)
@@ -36,8 +36,8 @@ def build_step(P,controller,mem_size,mem_width,similarity=cosine_sim):
 		erase_head = T.patternbroadcast(erase_head.reshape((1,erase_head.shape[0])),  (True,False))
 		add_head   = T.patternbroadcast(add_head.reshape((1,add_head.shape[0])),      (True,False))
 
-		M_erased = M_prev   * (erase_weight * (1 - erase_head))
-		M_curr   = M_erased + (add_weight   * add_head)
+		M_erased = M_prev   * (1 - (erase_weight * erase_head))
+		M_curr   = M_erased +      (add_weight   * add_head)
 		return M_curr
 	
 	def build_read(M_curr,weight_curr):

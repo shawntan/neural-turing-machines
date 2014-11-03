@@ -15,33 +15,33 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 
 	P.W_input_hidden = U.initial_weights(input_size,layer_sizes[0])
 	P.W_read_hidden  = U.initial_weights(mem_width, layer_sizes[0])
-	P.b_hidden_0 = U.initial_weights(layer_sizes[0])
+	P.b_hidden_0 = 0. * U.initial_weights(layer_sizes[0])
 	hidden_weights = []
 	for i in xrange(len(layer_sizes)-1):
 		P["W_hidden_%d"%(i+1)] = U.initial_weights(layer_sizes[i],layer_sizes[i+1])
-		P["b_hidden_%d"%(i+1)] = U.initial_weights(layer_sizes[i+1])
+		P["b_hidden_%d"%(i+1)] = 0. * U.initial_weights(layer_sizes[i+1])
 		hidden_weights.append((P["W_hidden_%d"%(i+1)],P["b_hidden_%d"%(i+1)]))
 
-	P.W_hidden_output = 0. * U.initial_weights(layer_sizes[-1],output_size)
-	P.b_output =  0. * U.initial_weights(output_size)
+	P.W_hidden_output = U.initial_weights(layer_sizes[-1],output_size)
+	P.b_output = 0. * U.initial_weights(output_size)
 
 	heads = ["read","erase","add"]
 
 	for h in heads:
 		P["W_hidden_%s_key"%h]   = U.initial_weights(layer_sizes[-1],mem_width)
-		P["W_hidden_%s_shift"%h] = 0. * U.initial_weights(layer_sizes[-1],mem_size)
-		P["b_%s_key"%h]   = 0. * U.initial_weights(mem_width)
-		P["b_%s_shift"%h] = 0. * U.initial_weights(mem_size)
+		P["W_hidden_%s_shift"%h] = U.initial_weights(layer_sizes[-1],mem_size)
+		P["b_%s_key"%h]   = U.initial_weights(mem_width)
+		P["b_%s_shift"%h] = U.initial_weights(mem_size)
 
-		P["W_hidden_%s_beta"%h]  = 0. * U.initial_weights(layer_sizes[-1])
-		P["W_hidden_%s_gamma"%h] = 0. * U.initial_weights(layer_sizes[-1])
-		P["W_hidden_%s_g"%h]     = 0. * U.initial_weights(layer_sizes[-1])
+		P["W_hidden_%s_beta"%h]  = U.initial_weights(layer_sizes[-1])
+		P["W_hidden_%s_gamma"%h] = U.initial_weights(layer_sizes[-1])
+		P["W_hidden_%s_g"%h]     = U.initial_weights(layer_sizes[-1])
 		P["b_%s_beta"%h]  = 0.
 		P["b_%s_gamma"%h] = 0.
 		P["b_%s_g"%h]     = 0.
 
 		if h != "read":
-			P["W_hidden_%s"%h] = 0. * U.initial_weights(layer_sizes[-1],mem_width)
+			P["W_hidden_%s"%h] = U.initial_weights(layer_sizes[-1],mem_width)
 			P["b_%s"%h]        = 0. * U.initial_weights(mem_width)
 
 
@@ -82,9 +82,12 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 			gamma_t = (_gamma_t > 0 ) * _gamma_t + 1
 
 			g_t      = T.nnet.sigmoid(T.dot(fin_hidden,P["W_hidden_%s_g"%h]) + P["b_%s_g"%h])
-			if h != "read":
+
+			if h == "erase":
 				head_t = T.nnet.sigmoid(T.dot(fin_hidden,P["W_hidden_%s"%h]) + P["b_%s"%h])
-			else:
+			elif h == "add":
+				head_t = T.dot(fin_hidden,P["W_hidden_%s"%h]) + P["b_%s"%h]
+			elif h == "read":
 				head_t = None
 
 			head_params.append(
