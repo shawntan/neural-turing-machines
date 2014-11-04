@@ -34,7 +34,8 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 	
 	input_seq = T.matrix('input_sequence')
 	output_seq = T.matrix('output_sequence')
-	output_seq_pred = predict(input_seq)
+	seqs = predict(input_seq)
+	output_seq_pred = seqs[-1]
 	cost = - T.mean(
 			T.sum(
 				output_seq * T.log(output_seq_pred) +\
@@ -47,7 +48,7 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 
 	return make_accumulate_update(
 			inputs = [input_seq,output_seq],
-			outputs = cost,
+			outputs = [cost]+seqs,
 			parameters = params,
 			gradients  = grads
 		)
@@ -58,11 +59,10 @@ if __name__ == "__main__":
 	mem_size   = 128
 	mem_width  = 20
 	output_size = input_size
-	acc_gradient,train_acc = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
+
 	for _ in xrange(30):
 		for _ in xrange(5):
+			acc_gradient,train_acc = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
 			inputs,outputs = tasks.copy(input_size,20)
-			cost = acc_gradient(inputs,outputs)
-			print cost
+			[cost,M_curr,read_weight,erase_weight,add_weight,output] = acc_gradient(inputs,outputs)
 		train_acc()
-	

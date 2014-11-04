@@ -10,7 +10,3 @@ def copy(input_size,max_size):
 	input_sequence[sequence_length,-1] = 1
 	output_sequence[sequence_length+1:,:-1] = sequence
 	return input_sequence,output_sequence
-
-
-
-
