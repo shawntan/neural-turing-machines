@@ -46,28 +46,30 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 	params = P.values()
 	grads  = T.grad(cost,wrt=params)
 
-	return make_accumulate_update(
+	return P,make_accumulate_update(
 			inputs = [input_seq,output_seq],
 			outputs = [cost]+seqs,
 			parameters = params,
 			gradients  = grads
 		)
 
-
+	
 if __name__ == "__main__":
 	input_size = 8
 	mem_size   = 128
 	mem_width  = 20
 	output_size = input_size
+	P,(acc_gradient,train_acc) = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
 
-	for _ in xrange(30):
-		for _ in xrange(5):
-			acc_gradient,train_acc = make_functions(
-					input_size,output_size,
-					mem_size,mem_width,
-					hidden_sizes=[100]
-				)
-			inputs,outputs = tasks.copy(input_size,20)
-			[cost,M_curr,read_weight,erase_weight,add_weight,output] = acc_gradient(inputs,outputs)
-			print cost
-		train_acc()
+	[cost,M_curr,read_weight,erase_weight,add_weight,output] = 6*[None]
+	prev_params = { p.name: p.get_value() for p in P.values() }
+	def run_training(episodes,sequences):
+		for _ in xrange(episodes):
+			for _ in xrange(sequences):
+				inputs,outputs = tasks.copy(input_size,20)
+				[cost,M_curr,read_weight,erase_weight,add_weight,output] = acc_gradient(inputs,outputs)
+				print cost
+			train_acc()
+			print "update!"
+
+	run_training(600,1)
