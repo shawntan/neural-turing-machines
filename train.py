@@ -30,7 +30,7 @@ def make_accumulate_update(inputs,outputs,parameters,gradients,update_method=upd
 def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20]):
 	P = Parameters()
 	ctrl = controller.build(P,input_size,output_size,mem_size,mem_width,hidden_sizes)
-	predict = model.build(P,mem_size,mem_width,input_size,ctrl)
+	predict = model.build(P,mem_size,mem_width,hidden_sizes[-1],ctrl)
 	
 	input_seq = T.matrix('input_sequence')
 	output_seq = T.matrix('output_sequence')
@@ -62,7 +62,12 @@ if __name__ == "__main__":
 
 	for _ in xrange(30):
 		for _ in xrange(5):
-			acc_gradient,train_acc = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
+			acc_gradient,train_acc = make_functions(
+					input_size,output_size,
+					mem_size,mem_width,
+					hidden_sizes=[100]
+				)
 			inputs,outputs = tasks.copy(input_size,20)
 			[cost,M_curr,read_weight,erase_weight,add_weight,output] = acc_gradient(inputs,outputs)
+			print cost
 		train_acc()

@@ -44,7 +44,7 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 		fin_hidden = prev_layer
 		output_t = T.nnet.sigmoid(T.dot(fin_hidden,P.W_hidden_output) + P.b_output)
 		
-		return output_t
+		return output_t,fin_hidden
 
 	return controller
 

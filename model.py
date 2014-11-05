@@ -19,7 +19,7 @@ def cosine_sim(k,M):
 #	M_unit = Print("M_unit")(M_unit)
 	return T.sum(k_unit * M_unit,axis=1)
 
-def build_step(P,controller,input_size,mem_size,mem_width,similarity=cosine_sim):
+def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim):
 	circ_convolve = scipy.linalg.circulant(np.arange(mem_size)).T
 	P.memory_init = 0.1 * np.random.randn(mem_size,mem_width)
 
@@ -27,9 +27,9 @@ def build_step(P,controller,input_size,mem_size,mem_width,similarity=cosine_sim)
 	P.add_weight_init   = 0.1 * np.random.randn(mem_size)
 	P.erase_weight_init = 0.1 * np.random.randn(mem_size)
 	
-	P.W_erase_head = U.initial_weights(input_size,mem_width)
+	P.W_erase_head = U.initial_weights(controller_size,mem_width)
 	P.b_erase_head = U.initial_weights(mem_width)
-	P.W_add_head   = U.initial_weights(input_size,mem_width)
+	P.W_add_head   = U.initial_weights(controller_size,mem_width)
 	P.b_add_head   = U.initial_weights(mem_width)
 
 	memory_init   = P.memory_init
@@ -39,7 +39,7 @@ def build_step(P,controller,input_size,mem_size,mem_width,similarity=cosine_sim)
 
 
 
-	heads = { h:head.build(P,h,input_size,mem_width,mem_size)
+	heads = { h:head.build(P,h,controller_size,mem_width,mem_size)
 				for h in ["read","erase","add"] }
 	
 	def build_memory_curr(M_prev,erase_head,erase_weight,add_head,add_weight):
@@ -77,27 +77,26 @@ def build_step(P,controller,input_size,mem_size,mem_width,similarity=cosine_sim)
 			add_weight_prev):
 		#print read_prev.type
 		
+		read_prev = build_read(M_prev,read_weight_prev)
+		output,controller_hidden = controller(input_curr,read_prev)
 
-		read_weight  = build_weight_curr(read_weight_prev,  M_prev, heads["read"],  input_curr)
-		erase_weight = build_weight_curr(erase_weight_prev, M_prev, heads["erase"], input_curr)
-		add_weight   = build_weight_curr(add_weight_prev,   M_prev, heads["add"],   input_curr)
+		read_weight  = build_weight_curr(read_weight_prev,  M_prev, heads["read"],  controller_hidden)
+		erase_weight = build_weight_curr(erase_weight_prev, M_prev, heads["erase"], controller_hidden)
+		add_weight   = build_weight_curr(add_weight_prev,   M_prev, heads["add"],   controller_hidden)
 
-		erase_head = T.nnet.sigmoid(T.dot(input_curr,P.W_erase_head) + P.b_erase_head)
-		add_head   = T.dot(input_curr,P.W_add_head) + P.b_add_head
+		erase_head = T.nnet.sigmoid(T.dot(controller_hidden,P.W_erase_head) + P.b_erase_head)
+		add_head   = T.dot(controller_hidden,P.W_add_head) + P.b_add_head
 
 		M_curr = build_memory_curr(M_prev,erase_head,erase_weight,add_head,add_weight)
 		
-		read_curr = build_read(M_curr,read_weight)
 		
-		output = controller(input_curr,read_curr)
 		#print [i.type for i in [erase_curr,add_curr,key_curr,shift_curr,beta_curr,gamma_curr,g_curr,output]]
 		#print weight_curr.type
 		return M_curr,read_weight,erase_weight,add_weight,output
 	return step,[memory_init,read_weight_init,erase_weight_init,add_weight_init,None]
 
-def build(P,mem_size,mem_width,input_size,ctrl):
-	output_size = input_size
-	step,outputs_info = build_step(P,ctrl,input_size,mem_size,mem_width)
+def build(P,mem_size,mem_width,controller_size,ctrl):
+	step,outputs_info = build_step(P,ctrl,controller_size,mem_size,mem_width)
 	def predict(input_sequence):
 		outputs,_ = theano.scan(
 				step,
