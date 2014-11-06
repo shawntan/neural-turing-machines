@@ -18,15 +18,18 @@ def cosine_sim(k,M):
 #	M_unit = Print("M_unit")(M_unit)
 	return T.sum(k_unit * M_unit,axis=1)
 
-def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim):
-	circ_convolve = scipy.linalg.circulant(np.arange(mem_size)).T
+def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim,shift_width=3):
+	
+	shift_conv = scipy.linalg.circulant(np.arange(mem_size)).T[np.arange(-(shift_width//2),(shift_width//2)+1)][::-1]
+	print shift_conv
+
 	P.memory_init = 0.1 * np.random.randn(mem_size,mem_width)
 	P.weight_init  = 0.1 * np.random.randn(mem_size)
 
 	memory_init = P.memory_init
 	weight_init = U.vector_softmax(P.weight_init)
 
-	heads = [head.build(P,0,controller_size,mem_width,mem_size)]
+	heads = [head.build(P,0,controller_size,mem_width,mem_size,shift_width)]
 	
 	def build_memory_curr(M_prev,erase_head,add_head,weight):
 		weight = weight.dimshuffle((0,'x'))
@@ -41,6 +44,11 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 	def build_read(M_curr,weight_curr):
 		return T.dot(weight_curr, M_curr)
 
+	def shift_convolve(weight,shift):
+		shift = shift.dimshuffle((0,'x'))
+		return T.sum(shift * weight[shift_conv],axis=0)
+
+
 	def build_head_curr(weight_prev,M_curr,head,input_curr):
 		"""
 		This function is best described by Figure 2 in the paper.
@@ -52,7 +60,9 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 
 		# 3.3.2 Focusing by Location
 		weight_g       = g * weight_c + (1 - g) * weight_prev
-		weight_shifted = T.dot(weight_g,shift[circ_convolve])
+
+		weight_shifted = shift_convolve(weight_g,shift)
+
 		weight_sharp   = weight_shifted ** gamma
 		weight_curr    = weight_sharp / T.sum(weight_sharp)
 

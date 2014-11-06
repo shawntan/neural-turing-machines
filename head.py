@@ -3,12 +3,12 @@ import theano.tensor as T
 import numpy         as np
 from theano_toolkit import utils as U
 
-def build(P,id,input_size,mem_width,mem_size):
+def build(P,id,input_size,mem_width,mem_size,shift_width):
 
 	P["W_%d_key"%id]   = U.initial_weights(input_size,mem_width)
 	P["b_%d_key"%id]   = U.initial_weights(mem_width)
-	P["W_%d_shift"%id] = U.initial_weights(input_size,mem_size)
-	P["b_%d_shift"%id] = U.initial_weights(mem_size)
+	P["W_%d_shift"%id] = U.initial_weights(input_size,shift_width)
+	P["b_%d_shift"%id] = U.initial_weights(shift_width)
 
 	P["W_%d_beta"%id]  = U.initial_weights(input_size)
 	P["b_%d_beta"%id]  = 0.
@@ -21,6 +21,7 @@ def build(P,id,input_size,mem_width,mem_size):
 	P["b_%d_erase"%id] = U.initial_weights(mem_width)
 	P["W_%d_add"%id]   = U.initial_weights(input_size,mem_width)
 	P["b_%d_add"%id]   = U.initial_weights(mem_width)
+
 	
 	def head_params(x):
 		# key
