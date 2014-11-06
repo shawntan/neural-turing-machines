@@ -3,36 +3,44 @@ import theano.tensor as T
 import numpy         as np
 from theano_toolkit import utils as U
 
-def build(P,name,input_size,mem_width,mem_size):
+def build(P,id,input_size,mem_width,mem_size):
 
-	P["W_%s_key"%name]   = U.initial_weights(input_size,mem_width)
-	P["b_%s_key"%name]   = U.initial_weights(mem_width)
-	P["W_%s_shift"%name] = U.initial_weights(input_size,mem_size)
-	P["b_%s_shift"%name] = U.initial_weights(mem_size)
+	P["W_%d_key"%id]   = U.initial_weights(input_size,mem_width)
+	P["b_%d_key"%id]   = U.initial_weights(mem_width)
+	P["W_%d_shift"%id] = U.initial_weights(input_size,mem_size)
+	P["b_%d_shift"%id] = U.initial_weights(mem_size)
 
-	P["W_%s_beta"%name]  = U.initial_weights(input_size)
-	P["b_%s_beta"%name]  = 0.
-	P["W_%s_gamma"%name] = U.initial_weights(input_size)
-	P["b_%s_gamma"%name] = 0.
-	P["W_%s_g"%name]     = U.initial_weights(input_size)
-	P["b_%s_g"%name]     = 0.
+	P["W_%d_beta"%id]  = U.initial_weights(input_size)
+	P["b_%d_beta"%id]  = 0.
+	P["W_%d_gamma"%id] = U.initial_weights(input_size)
+	P["b_%d_gamma"%id] = 0.
+	P["W_%d_g"%id]     = U.initial_weights(input_size)
+	P["b_%d_g"%id]     = 0.
+
+	P["W_%d_erase"%id] = U.initial_weights(input_size,mem_width)
+	P["b_%d_erase"%id] = U.initial_weights(mem_width)
+	P["W_%d_add"%id]   = U.initial_weights(input_size,mem_width)
+	P["b_%d_add"%id]   = U.initial_weights(mem_width)
 	
-	
-	def weight_params(x):
+	def head_params(x):
 		# key
-		key_t = T.dot(x,P["W_%s_key"%name]) + P["b_%s_key"%name]
+		key_t = T.dot(x,P["W_%d_key"%id]) + P["b_%d_key"%id]
 
 		# shift
-		shift_t = U.vector_softmax(T.dot(x,P["W_%s_shift"%name]) + P["b_%s_shift"%name])
+		shift_t = U.vector_softmax(T.dot(x,P["W_%d_shift"%id]) + P["b_%d_shift"%id])
 
 		# scalars
-		_beta_t  = T.dot(x,P["W_%s_beta"%name])  + P["b_%s_beta"%name]
-		_gamma_t = T.dot(x,P["W_%s_gamma"%name]) + P["b_%s_gamma"%name]
+		_beta_t  = T.dot(x,P["W_%d_beta"%id])  + P["b_%d_beta"%id]
+		_gamma_t = T.dot(x,P["W_%d_gamma"%id]) + P["b_%d_gamma"%id]
 
 		beta_t  = T.nnet.softplus(_beta_t)
 		gamma_t = T.nnet.softplus(_gamma_t) + 1
 
-		g_t     = T.nnet.sigmoid(T.dot(x,P["W_%s_g"%name]) + P["b_%s_g"%name])
-		return key_t,beta_t,g_t,shift_t,gamma_t
-	return weight_params
+		g_t     = T.nnet.sigmoid(T.dot(x,P["W_%d_g"%id]) + P["b_%d_g"%id])
+
+		erase_t = T.nnet.sigmoid(T.dot(x,P["W_%d_erase"%id]) + P["b_%d_erase"%id])
+		add_t   = T.dot(x,P["W_%d_add"%id]) + P["b_%d_add"%id]
+
+		return key_t,beta_t,g_t,shift_t,gamma_t,erase_t,add_t
+	return head_params
 

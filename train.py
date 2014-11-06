@@ -68,6 +68,6 @@ if __name__ == "__main__":
 					hidden_sizes=[100]
 				)
 			inputs,outputs = tasks.copy(input_size,20)
-			[cost,M_curr,read_weight,erase_weight,add_weight,output] = acc_gradient(inputs,outputs)
+			[cost,M_curr,weight,output] = acc_gradient(inputs,outputs)
 			print cost
 		train_acc()
