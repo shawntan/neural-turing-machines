@@ -4,7 +4,6 @@ import numpy         as np
 from theano.printing import Print
 from theano_toolkit import utils as U
 from theano_toolkit.parameters import Parameters
-from theano_toolkit import hinton
 import controller
 import head
 import scipy
