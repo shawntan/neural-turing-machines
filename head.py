@@ -6,11 +6,11 @@ from theano_toolkit import utils as U
 def build(P,id,input_size,mem_width,mem_size,shift_width):
 
 	P["W_%d_key"%id]   = U.initial_weights(input_size,mem_width)
-	P["b_%d_key"%id]   = U.initial_weights(mem_width)
+	P["b_%d_key"%id]   = 0. * U.initial_weights(mem_width)
 	P["W_%d_shift"%id] = U.initial_weights(input_size,shift_width)
-	P["b_%d_shift"%id] = U.initial_weights(shift_width)
+	P["b_%d_shift"%id] = 0. * U.initial_weights(shift_width)
 
-	P["W_%d_beta"%id]  = U.initial_weights(input_size)
+	P["W_%d_beta"%id]  = 0. * U.initial_weights(input_size)
 	P["b_%d_beta"%id]  = 0.
 	P["W_%d_gamma"%id] = U.initial_weights(input_size)
 	P["b_%d_gamma"%id] = 0.
@@ -18,9 +18,9 @@ def build(P,id,input_size,mem_width,mem_size,shift_width):
 	P["b_%d_g"%id]     = 0.
 
 	P["W_%d_erase"%id] = U.initial_weights(input_size,mem_width)
-	P["b_%d_erase"%id] = U.initial_weights(mem_width)
+	P["b_%d_erase"%id] = 0. * U.initial_weights(mem_width)
 	P["W_%d_add"%id]   = U.initial_weights(input_size,mem_width)
-	P["b_%d_add"%id]   = U.initial_weights(mem_width)
+	P["b_%d_add"%id]   = 0. * U.initial_weights(mem_width)
 
 	
 	def head_params(x):
@@ -29,12 +29,14 @@ def build(P,id,input_size,mem_width,mem_size,shift_width):
 
 		# shift
 		shift_t = U.vector_softmax(T.dot(x,P["W_%d_shift"%id]) + P["b_%d_shift"%id])
+		shift_t.name = "shift_t"
 
 		# scalars
 		_beta_t  = T.dot(x,P["W_%d_beta"%id])  + P["b_%d_beta"%id]
 		_gamma_t = T.dot(x,P["W_%d_gamma"%id]) + P["b_%d_gamma"%id]
 
-		beta_t  = T.nnet.softplus(_beta_t)
+	
+		beta_t  = T.exp(_beta_t)
 		gamma_t = T.nnet.softplus(_gamma_t) + 1
 
 		g_t     = T.nnet.sigmoid(T.dot(x,P["W_%d_g"%id]) + P["b_%d_g"%id])
