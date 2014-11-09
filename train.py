@@ -4,6 +4,7 @@ import numpy         as np
 from theano_toolkit.parameters import Parameters
 from theano_toolkit import updates
 from theano_toolkit import utils as U
+from theano_toolkit import hinton
 import controller
 import model
 import tasks
@@ -41,7 +42,7 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 	response_length = output_seq.shape[0] / 2
 	pred = output_seq_pred[-response_length:]
 
-	cross_entropy = T.sum(T.nnet.binary_crossentropy(output_seq_pred,output_seq),axis=1)#0.5*1e-5 + (1-1e-5)*
+	cross_entropy = T.sum(T.nnet.binary_crossentropy(0.5*1e-5 + (1-1e-5)*output_seq_pred,output_seq),axis=1)
 	#sq_error = T.sum((output_seq[-response_length:] - output_seq_pred[-response_length:])**2)
 	
 	l2 = sum(T.sum(p**2) for p in P.values() if p.name.startswith("W") or p.name.startswith("b"))
