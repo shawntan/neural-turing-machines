@@ -10,9 +10,9 @@ import scipy
 
 def cosine_sim(k,M):
 	k_unit = k / T.sqrt(T.sum(k**2))
-	k_unit = T.patternbroadcast(k_unit.reshape((1,k_unit.shape[0])),(True,False))
+	k_unit = k_unit.dimshuffle(('x',0))
 	k_unit.name = "k_unit"
-	M_lengths = T.patternbroadcast(T.sqrt(T.sum(M**2,axis=1)).reshape((M.shape[0],1)),(False,True))
+	M_lengths = T.sqrt(T.sum(M**2,axis=1)).dimshuffle((0,'x'))
 	M_unit = M / M_lengths
 	M_unit.name = "M_unit"
 #	M_unit = Print("M_unit")(M_unit)
