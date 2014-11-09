@@ -24,7 +24,7 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 		P["b_hidden_%d"%(i+1)] = 0. * U.initial_weights(layer_sizes[i+1])
 		hidden_weights.append((P["W_hidden_%d"%(i+1)],P["b_hidden_%d"%(i+1)]))
 
-	P.W_hidden_output = U.initial_weights(layer_sizes[-1],output_size)
+	P.W_hidden_output = 0. * U.initial_weights(layer_sizes[-1],output_size)
 	P.b_output = 0. * U.initial_weights(output_size)
 
 	def controller(input_t,read_t):
@@ -39,7 +39,7 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 #		print "weights",P.W_input_hidden.type,P.W_read_hidden.type,P.b_hidden_0.type
 #		print "layer", hidden_0.type
 		for W,b in hidden_weights:
-			prev_layer = T.nnet.sigmoid(T.dot(prev_layer,W) + b)
+			prev_layer = T.tanh(T.dot(prev_layer,W) + b)
 
 		fin_hidden = prev_layer
 		output_t = T.nnet.sigmoid(T.dot(fin_hidden,P.W_hidden_output) + P.b_output)

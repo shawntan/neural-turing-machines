@@ -9,11 +9,11 @@ import head
 import scipy
 
 def cosine_sim(k,M):
-	k_unit = k / T.sqrt(T.sum(k**2))
-	k_unit = T.patternbroadcast(k_unit.reshape((1,k_unit.shape[0])),(True,False))
+	k_unit = k / ( T.sqrt(T.sum(k**2)) + 1e-5 )
+	k_unit = k_unit.dimshuffle(('x',0)) #T.patternbroadcast(k_unit.reshape((1,k_unit.shape[0])),(True,False))
 	k_unit.name = "k_unit"
-	M_lengths = T.patternbroadcast(T.sqrt(T.sum(M**2,axis=1)).reshape((M.shape[0],1)),(False,True))
-	M_unit = M / M_lengths
+	M_lengths = T.sqrt(T.sum(M**2,axis=1)).dimshuffle((0,'x'))
+	M_unit = M / ( M_lengths + 1e-5 )
 	M_unit.name = "M_unit"
 #	M_unit = Print("M_unit")(M_unit)
 	return T.sum(k_unit * M_unit,axis=1)
@@ -21,10 +21,9 @@ def cosine_sim(k,M):
 def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim,shift_width=3):
 	
 	shift_conv = scipy.linalg.circulant(np.arange(mem_size)).T[np.arange(-(shift_width//2),(shift_width//2)+1)][::-1]
-	print shift_conv
 
-	P.memory_init = 0.1 * np.random.randn(mem_size,mem_width)
-	P.weight_init  = 0.1 * np.random.randn(mem_size)
+	P.memory_init = 2 * (np.random.rand(mem_size,mem_width) - 0.5)
+	P.weight_init = 0. * np.random.randn(mem_size)
 
 	memory_init = P.memory_init
 	weight_init = U.vector_softmax(P.weight_init)
@@ -57,9 +56,11 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 
 		# 3.3.1 Focusing b Content
 		weight_c = U.vector_softmax(beta * similarity(key,M_curr))
+		weight_c.name = "weight_c"
 
 		# 3.3.2 Focusing by Location
 		weight_g       = g * weight_c + (1 - g) * weight_prev
+		weight_g.name = "weight_g"
 
 		weight_shifted = shift_convolve(weight_g,shift)
 
