@@ -25,7 +25,7 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 	shift_conv = scipy.linalg.circulant(np.arange(mem_size)).T[np.arange(-(shift_width//2),(shift_width//2)+1)][::-1]
 
 	P.memory_init = 2 * (np.random.rand(mem_size,mem_width) - 0.5)
-	P.weight_init = 0. * np.random.randn(mem_size)
+	P.weight_init = np.random.randn(mem_size)
 
 	memory_init = P.memory_init
 	weight_init = U.vector_softmax(P.weight_init)

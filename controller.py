@@ -29,7 +29,7 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 
 	def controller(input_t,read_t):
 #		print "input_t",input_t.type
-		prev_layer = hidden_0 = T.nnet.sigmoid(
+		prev_layer = hidden_0 = T.tanh(
 				T.dot(input_t,P.W_input_hidden) +\
 				T.dot(read_t,P.W_read_hidden) +\
 				P.b_hidden_0
@@ -45,6 +45,5 @@ def build(P,input_size,output_size,mem_size,mem_width,layer_sizes):
 		output_t = T.nnet.sigmoid(T.dot(fin_hidden,P.W_hidden_output) + P.b_output)
 		
 		return output_t,fin_hidden
-
 	return controller
 

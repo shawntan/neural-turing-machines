@@ -1,5 +1,8 @@
 import numpy as np
 import random
+
+np.random.seed(1234)
+random.seed(1234)
 def copy(input_size,max_size):
 	sequence_length = max_size
 	sequence = np.random.binomial(1,0.5,(sequence_length,input_size-1)).astype(dtype=np.uint8)

@@ -35,9 +35,14 @@ def build(P,id,input_size,mem_width,mem_size,shift_width):
 		_beta_t  = T.dot(x,P["W_%d_beta"%id])  + P["b_%d_beta"%id]
 		_gamma_t = T.dot(x,P["W_%d_gamma"%id]) + P["b_%d_gamma"%id]
 
-	
-		beta_t  = T.exp(_beta_t)
-		gamma_t = T.nnet.softplus(_gamma_t) + 1
+		beta_t  = T.nnet.softplus(_beta_t)
+		gamma_t = T.nnet.softplus(_gamma_t) + 1.
+#		beta_t  = (_beta_t  > 0)*_beta_t
+#		gamma_t = (_gamma_t > 0)*_gamma_t + 1.
+#		beta_t  = T.exp(_beta_t)
+#		gamma_t = T.exp(_gamma_t) + 1.
+
+
 
 		g_t     = T.nnet.sigmoid(T.dot(x,P["W_%d_g"%id]) + P["b_%d_g"%id])
 
