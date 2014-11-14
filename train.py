@@ -10,7 +10,7 @@ import model
 import tasks
 import random
 import math
-def make_accumulate_update(inputs,outputs,parameters,gradients,post_func,update_method=updates.rmsprop):
+def make_accumulate_update(inputs,outputs,parameters,gradients,post_func,update_method=updates.adadelta):
 	acc = [ U.create_shared(np.zeros(p.get_value().shape)) for p in parameters ]
 	count = U.create_shared(np.int32(0))
 	acc_update = [ (a,a + g) for a,g in zip(acc,gradients) ] + [ (count,count+1) ]
@@ -40,14 +40,14 @@ def make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[20,20
 	
 	response_length = output_seq.shape[0] / 2
 	pred = output_seq_pred[-response_length:]
-
+	# 5e-6 + (1 - 2*5e-6)*
 	cross_entropy = T.sum(T.nnet.binary_crossentropy(5e-6 + (1 - 2*5e-6)*output_seq_pred,output_seq),axis=1)
 	#sq_error = T.sum((output_seq[-response_length:] - output_seq_pred[-response_length:])**2)
 	
 	l2 = sum(T.sum(p**2) for p in P.values() if p.name.startswith("W") or p.name.startswith("b"))
 	cost = T.sum(cross_entropy) # + 1e-3 * l2
 	params = P.values()
-	grads  = T.grad(cost,wrt=params)
+	grads  = [ T.clip(g,-100,100) for g in T.grad(cost,wrt=params) ]
 
 	def detect_nan(i, node, fn):
 		for output in fn.outputs:
@@ -83,14 +83,13 @@ if __name__ == "__main__":
 	i,o = None,None
 	try:
 		P,(acc_gradient,train_acc) = make_functions(input_size,output_size,mem_size,mem_width,hidden_sizes=[100])
-
 		[cost,M_curr,weight,output] = 4*[None]
 
 		def run_training(episodes,sequences):
 			global i,o
 			for eps in xrange(episodes):
 				global counter
-				length = np.random.randint(int(20*(eps/float(episodes))**1.5)+1) + 1
+				length = np.random.randint(int(20*(eps/float(episodes))**1.5)+1) + 1 
 				prev_params = { p.name: p.get_value() for p in P.values() }
 				costs = []
 				for _ in xrange(sequences):
@@ -107,7 +106,7 @@ if __name__ == "__main__":
 						print k
 
 		#P.load('rmsprop.mdl')
-		run_training(70000,1)
+		run_training(75000,1)
 		P.save('increasing.mdl')
 	except Exception as exp:
 		print exp
