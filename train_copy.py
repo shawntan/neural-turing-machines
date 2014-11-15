@@ -45,11 +45,8 @@ if __name__ == "__main__":
 	)
 
 	max_sequences = 200000
-	patience = 20000  # look as this many examples regardless
-	patience_increase = 2     # wait this much longer when a new best is
-								  # found
-	improvement_threshold = 0.995  # a relative improvement of this much is
-								   # considered significant
+	patience = 20000
+	improvement_threshold = 0.995
 	best_score = np.inf
 	test_score = 0.
 
