@@ -44,16 +44,19 @@ if __name__ == "__main__":
 		output_size = 8
 	)
 
-	max_sequences = 200000
+	max_sequences = 100000
 	patience = 20000
+	patience_increase = 3
 	improvement_threshold = 0.995
 	best_score = np.inf
 	test_score = 0.
-
+	score = None
+	alpha = 0.95
 	for counter in xrange(max_sequences):
-		length = np.random.randint(20) + 1
+		length = np.random.randint(int(20 * (min(counter,50000)/float(50000))**1.5) +1) + 1
 		i,o = tasks.copy(8,length)
-		score = train(i,o)
+		if score == None: score = train(i,o)
+		else: score = alpha * score + (1 - alpha) * train(i,o)
 		print score
 		if score < best_score:
 			# improve patience if loss improvement is good enough
