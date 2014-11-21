@@ -1,7 +1,7 @@
 Neural Turing Machines
 ======================
 
-Attempt at implementing system described in ["Neural Turing Machines." by Graves, Alex, Greg Wayne, and Ivo Danihelka](http://arxiv.org/abs/1410.5401).
+Attempt at implementing system described in ["Neural Turing Machines." by Alex Graves, Greg Wayne, and Ivo Danihelka](http://arxiv.org/abs/1410.5401).
 
 This is still very much a work in progress:
 - Only the copy task has been implemented.
