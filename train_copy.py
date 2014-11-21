@@ -53,7 +53,7 @@ if __name__ == "__main__":
 	score = None
 	alpha = 0.95
 	for counter in xrange(max_sequences):
-		length = np.random.randint(int(20 * (min(counter,50000)/float(50000))**1.5) +1) + 1
+		length = np.random.randint(int(20 * (min(counter,50000)/float(50000))**2) +1) + 1
 		i,o = tasks.copy(8,length)
 		if score == None: score = train(i,o)
 		else: score = alpha * score + (1 - alpha) * train(i,o)
