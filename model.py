@@ -20,7 +20,7 @@ def cosine_sim(k,M):
 #	M_unit = Print("M_unit")(M_unit)
 	return T.sum(k_unit * M_unit,axis=1)
 
-def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim,shift_width=3):
+def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine_sim,shift_width=3,no_heads=1):
 	
 	shift_conv = scipy.linalg.circulant(np.arange(mem_size)).T[np.arange(-(shift_width//2),(shift_width//2)+1)][::-1]
 
@@ -30,7 +30,7 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 	memory_init = P.memory_init
 	weight_init = U.vector_softmax(P.weight_init)
 
-	heads = [head.build(P,0,controller_size,mem_width,mem_size,shift_width)]
+	heads = [head.build(P,h,controller_size,mem_width,mem_size,shift_width) for h in range(no_heads)]
 	
 	def build_memory_curr(M_prev,erase_head,add_head,weight):
 		weight = weight.dimshuffle((0,'x'))
@@ -77,9 +77,11 @@ def build_step(P,controller,controller_size,mem_size,mem_width,similarity=cosine
 		read_prev = build_read(M_prev,weight_prev)
 		output,controller_hidden = controller(input_curr,read_prev)
 
-		weight_curr,erase,add = build_head_curr(weight_prev,M_prev,heads[0],controller_hidden)
-
-		M_curr = build_memory_curr(M_prev,erase,add,weight_curr)
+		weight_inter,M_inter = weight_prev,M_prev
+		for head in heads:
+			weight_inter,erase,add = build_head_curr(weight_inter,M_inter,head,controller_hidden)
+			M_inter = build_memory_curr(M_inter,erase,add,weight_inter)
+		weight_curr,M_curr = weight_inter,M_inter
 		
 		#print [i.type for i in [erase_curr,add_curr,key_curr,shift_curr,beta_curr,gamma_curr,g_curr,output]]
 		#print weight_curr.type
