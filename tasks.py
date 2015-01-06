@@ -5,7 +5,7 @@ np.random.seed(1234)
 random.seed(1234)
 def copy(input_size,max_size):
 	sequence_length = max_size
-	sequence = np.random.binomial(1,0.5,(sequence_length,input_size-1)).astype(dtype=np.uint8)
+	sequence = np.random.binomial(1,0.5,(sequence_length,input_size-1)).astype(np.uint8)
 	input_sequence  = np.zeros((sequence_length*2+1,input_size),dtype=np.float32)
 	output_sequence = np.zeros((sequence_length*2+1,input_size),dtype=np.float32)
 	
