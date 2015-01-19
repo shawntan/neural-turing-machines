@@ -23,12 +23,12 @@ def make_train(input_size,output_size,mem_size,mem_width,hidden_sizes=[100]):
 	cross_entropy = T.sum(T.nnet.binary_crossentropy(5e-6 + (1 - 2*5e-6)*output_seq_pred,output_seq),axis=1)
 	cost = T.sum(cross_entropy) # + 1e-3 * l2
 	params = P.values()
-	grads  = [ T.clip(g,-100,100) for g in T.grad(cost,wrt=params) ]
+	grads  = [ T.clip(g,-10,10) for g in T.grad(cost,wrt=params) ]
 
 	train = theano.function(
 			inputs=[input_seq,output_seq],
 			outputs=T.sum(cross_entropy),
-			updates=updates.adadelta(params,grads)
+			updates=updates.rmsprop(params,grads)
 		)
 
 	return P,train
@@ -37,10 +37,10 @@ if __name__ == "__main__":
 	model_out = sys.argv[1]
 
 	P,train = make_train(
-		input_size = 8,
+		input_size = 9,
 		mem_size   = 128,
 		mem_width  = 20,
-		output_size = 8
+		output_size = 9
 	)
 
 	max_sequences = 100000
@@ -52,11 +52,14 @@ if __name__ == "__main__":
 	score = None
 	alpha = 0.95
 	for counter in xrange(max_sequences):
-		length = np.random.randint(int(20 * (min(counter,50000)/float(50000))**2) +1) + 1
-		i,o = tasks.copy(8,length)
+		
+		length = np.random.randint(int(counter/1000)+1) + 1
+		num_repeats = np.random.randint(int(counter/1000)+1) + 1
+			
+		i,o = tasks.repeat_copy(9, length, num_repeats)
 		if score == None: score = train(i,o)
 		else: score = alpha * score + (1 - alpha) * train(i,o)
-		print score
+		print str(counter)+" "+str(score)
 		if score < best_score:
 			# improve patience if loss improvement is good enough
 			if score < best_score * improvement_threshold:
