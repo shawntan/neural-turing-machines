@@ -25,10 +25,9 @@ def make_train(input_size,output_size,mem_size,mem_width,hidden_sizes=[100]):
 	params = P.values()
 	grads  = [ T.clip(g,-100,100) for g in T.grad(cost,wrt=params) ]
 
-	response_length = input_seq.shape[0]/2
 	train = theano.function(
 			inputs=[input_seq,output_seq],
-			outputs=T.mean(cross_entropy[-response_length:]),
+			outputs=T.sum(cross_entropy),
 			updates=updates.adadelta(params,grads)
 		)
 
