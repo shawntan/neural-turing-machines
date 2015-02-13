@@ -28,6 +28,6 @@ def plot_weights(seq_length):
 
 if __name__ == "__main__":
       P,do_task = run_model.make_model()
-      P.load('gpuTest')
-      plot(25)
+      P.load('lowerInitFewerExamples')
+      plot(150)
       #plot_weights(8)
