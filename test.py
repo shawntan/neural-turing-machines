@@ -28,6 +28,6 @@ def plot_weights(seq_length):
 
 if __name__ == "__main__":
       P,do_task = run_model.make_model()
-      P.load('l2_reg')
-      plot(120)
+      P.load('l2_low_learning_rate.mdl')
+      plot(130)
       #plot_weights(8)
