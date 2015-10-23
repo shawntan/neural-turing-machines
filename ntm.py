@@ -71,8 +71,8 @@ def build(mem_size, mem_width,
 
         weight_shifted = shift_convolve(weight_g, shift)
 
-        weight_sharp = weight_shifted ** T.addbroadcast(gamma,1)
-        weight_curr = weight_sharp / T.sum(weight_sharp,axis=1,keepdims=True)
+        log_weight_sharp = T.addbroadcast(gamma,1) * T.log(weight_shifted)
+        weight_curr = head.softmax(log_weight_sharp) 
 
         return weight_curr
 

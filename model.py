@@ -6,6 +6,9 @@ from theano_toolkit import utils as U
 from theano_toolkit.parameters import Parameters
 import scipy
 
+import head
+import feedforward
+import ntm
 def build(P, input_size, output_size, mem_size, mem_width, controller_size):
     # shift_width x mem_size
     P.memory_init = 2 * (np.random.rand(mem_size, mem_width) - 0.5)
@@ -17,16 +20,17 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
             shift_width=3
         )
 
+
+    def controller_activation(X):
+        return (head_activations(X[:,:head_size]),X[:,head_size:])
+
     controller = feedforward.build_classifier(
             P, "controller",
             input_sizes=[input_size,mem_width],
             hidden_sizes=[controller_size],
             output_size=head_size + output_size,
             activation=T.nnet.sigmoid,
-            output_activation=lambda X: (
-                head_activations(X[:,:head_size]),
-                X[:,head_size:]
-            )
+            output_activation=controller_activation
         )
 
     ntm_update = ntm.build(mem_size, mem_width)
@@ -45,7 +49,6 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
             heads, output = controller([X,prev_read])
             M, weight, read = ntm_update(prev_weight,prev_M,heads)
             return M, weight, read, output
-
         [batch_M,batch_weight,batch_read,outputs], _ = theano.scan(
                 step,
                 sequences=[X.dimshuffle(1,0,2)],
@@ -56,7 +59,7 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
                     None
                 ]
             )
-        return outputs
+        return outputs.dimshuffle(1,0,2), batch_weight.sum(axis=-1)
     return process
 
 if __name__ == "__main__":
@@ -98,5 +101,6 @@ if __name__ == "__main__":
     """
 
     process = build(P, input_size, output_size, mem_size, mem_width, controller_size)
-    process(theano.shared(np.random.randn(10,20,10).astype(np.float32))).eval()
+    output_tape = process(theano.shared(np.random.randn(10,20,10).astype(np.float32))).eval()
+    print output_tape.shape
 #    print M.eval().shape
