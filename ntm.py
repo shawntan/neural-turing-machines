@@ -25,10 +25,13 @@ def build(mem_size, mem_width,
     def shift_convolve(weight, shift):
         # weight: batch_size x mem_size
         # shift:  batch_size x shift_width
-        shift = shift.dimshuffle(0,1,'x')
-        weight_windows = weight[:,shift_conv]
+        log_shift = T.log(shift).dimshuffle(0,1,'x')
+        log_weight_windows = weight[:,shift_conv]
         # batch_size x shift_width x mem_size
-        shifted_weight = T.sum(shift * weight_windows, axis=1)
+        shifted_weight = T.sum(
+                T.exp(log_shift + log_weight_windows),
+                axis=1
+            )
         return shifted_weight
 
     def compute_memory_curr(M_prev, erase_head, add_head, weight):
@@ -70,7 +73,6 @@ def build(mem_size, mem_width,
         weight_g = g * weight_c + (1 - g) * weight_prev
 
         weight_shifted = shift_convolve(weight_g, shift)
-
         log_weight_sharp = T.addbroadcast(gamma,1) * T.log(weight_shifted)
         weight_curr = head.softmax(log_weight_sharp) 
 
