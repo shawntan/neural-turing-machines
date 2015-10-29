@@ -42,8 +42,8 @@ def make_train(input_size, output_size, mem_size, mem_width, hidden_sizes=[100])
     print "Compiling function",
     train = theano.function(
         inputs=[input_seqs, output_seqs],
-        outputs=cost/output_length, #[ d for _,d in sq_deltas ],
-        updates=updates.adadelta(params, grads)
+        outputs=[ d for _,d in sq_deltas ],#cost/output_length, #
+        updates=updates.rmsprop(params, grads, learning_rate=1e-4)
     )
     print "Done. (%0.3f s)"%(time.time() - start_time)
 
@@ -62,11 +62,17 @@ if __name__ == "__main__":
 
     max_sequences = 100000
     max_sequence_length = 20
-    batch_size = 64
+    batch_size = 32
+    P.load(model_out)
     for counter in xrange(max_sequences):
         length = np.random.randint(max_sequence_length) + 1
         i, o = tasks.copy(batch_size, length, width)
         score = train(i, o)
+        #if np.isnan(score):
+        #    print "NaN"
+        #    exit()
+        #else:
         print score, length
+        exit()
 #        print { p.name:s for p,s in zip(params,score) }
     P.save(model_out)
