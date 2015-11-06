@@ -28,11 +28,11 @@ def build_classifier(
         output_activation=T.nnet.softmax):
 
     combine_inputs = build_combine_transform(
-            P,"%s_input"%name,
-            input_sizes,hidden_sizes[0],
-            initial_weights=initial_weights,
-            activation=activation
-        )
+                        P,"%s_input"%name,
+                        input_sizes,hidden_sizes[0],
+                        initial_weights=initial_weights,
+                        activation=activation
+            )
 
     transforms = build_stacked_transforms(P,name,hidden_sizes,
             initial_weights=initial_weights,
@@ -40,9 +40,8 @@ def build_classifier(
 
     output = build_transform(
         P,"%s_output"%name,hidden_sizes[-1],output_size,
-        initial_weights=lambda x,y: 0.01 * np.random.randn(x,y),
-        activation=output_activation
-    )
+        initial_weights=initial_weights,
+        activation=output_activation)
 
     def classify(Xs):
         hidden_0 = combine_inputs(Xs)

@@ -10,56 +10,81 @@ import head
 import feedforward
 import ntm
 def build(P, input_size, output_size, mem_size, mem_width, controller_size):
-    # shift_width x mem_size
-    P.memory_init = 2 * (np.random.rand(mem_size, mem_width) - 0.5)
-    P.weight_init = np.random.randn(mem_size)
+    head_count = 1
+    P.memory_init = 0.001 * np.random.randn(mem_size,mem_width)  #2 * (np.random.rand(mem_size, mem_width) - 0.5
 
-    head_size,head_activations = head.build(
-            head_count=1,
+    weight_init_params = []
+    for i in xrange(head_count):
+        P['read_weight_init_%d'%i]  = 0.01 * np.random.randn(mem_size)
+        P['write_weight_init_%d'%i] = 0.01 * np.random.randn(mem_size)
+        weight_init_params.append((P['read_weight_init_%d'%i],P['write_weight_init_%d'%i]))
+#        weight_init_params.append((init,init))
+
+    heads_size, head_activations = head.build(
+            head_count=head_count,
             mem_width=mem_width,
             shift_width=3
         )
-
+    print "Size of heads:",heads_size
 
     def controller_activation(X):
-        return (head_activations(X[:,:head_size]),X[:,head_size:])
+        return (head_activations(X[:,:heads_size]),X[:,heads_size:])
 
     controller = feedforward.build_classifier(
             P, "controller",
             input_sizes=[input_size,mem_width],
             hidden_sizes=[controller_size],
-            output_size=head_size + output_size,
+            output_size=heads_size + output_size,
             activation=T.nnet.sigmoid,
             output_activation=controller_activation
         )
 
-    ntm_update = ntm.build(mem_size, mem_width)
+    ntm_step = ntm.build(mem_size, mem_width)
 
     def process(X):
         # input_sequences: batch_size x sequence_length x input_size
         memory_init = P.memory_init
-        weight_init = U.vector_softmax(P.weight_init)
-        read_init = T.dot(weight_init,memory_init)
+        batch_size = X.shape[0]
+        batch_size.name = 'batch_size'
+        batch_memory_init = T.alloc(memory_init,batch_size,mem_size,mem_width)
+        batch_memory_init.name = 'batch_memory_init'
+        import head
+        batch_weight_inits = [
+                (
+                    T.alloc(head.softmax(r),batch_size,mem_size),
+                    T.alloc(head.softmax(w),batch_size,mem_size)
+                ) for r,w in weight_init_params ]
+        for r,w in batch_weight_inits:
+            r.name = 'read'
+            w.name = 'write'
 
-        batch_memory_init = T.alloc(memory_init,X.shape[0],mem_size,mem_width)
-        batch_weight_init = T.alloc(weight_init,X.shape[0],mem_size)
-        batch_read_init   = T.alloc(read_init,X.shape[0],mem_width)
 
-        def step(X,prev_M,prev_weight,prev_read):
-            heads, output = controller([X,prev_read])
-            M, weight, read = ntm_update(prev_weight,prev_M,heads)
-            return M, weight, read, output
-        [batch_M,batch_weight,batch_read,outputs], _ = theano.scan(
+        def step(X,M_prev,*heads):
+            # weights [ batch_size x mem_size ]
+            # M_prev  [ batch_size x mem_size x mem_width ]
+            weights_prev = zip(heads[0*head_count:1*head_count],
+                               heads[1*head_count:2*head_count])
+            reads_prev = [ T.sum(r.dimshuffle(0,1,'x') * M_prev,axis=1) 
+                                for r,_ in weights_prev ]
+
+            heads, output = controller([X] + reads_prev)
+            M_curr, weights_curr = ntm_step(M_prev, heads, weights_prev)
+            return [ M_curr ] + \
+                   [ r for r,_ in weights_curr ] +\
+                   [ w for _,w in weights_curr ] +\
+                   [ output ]
+
+        scan_outs, _ = theano.scan(
                 step,
                 sequences=[X.dimshuffle(1,0,2)],
-                outputs_info=[
-                    batch_memory_init,
-                    batch_weight_init,
-                    batch_read_init,
-                    None
-                ]
+                outputs_info=[batch_memory_init] +\
+                        [ r for r,_ in batch_weight_inits ] +\
+                        [ w for _,w in batch_weight_inits ] +\
+                        [ None ]
             )
-        return outputs.dimshuffle(1,0,2), batch_weight.sum(axis=-1)
+        outputs = scan_outs[-1]
+        print outputs.ndim
+        return outputs.dimshuffle(1,0,2)
     return process
 
 if __name__ == "__main__":
@@ -70,12 +95,11 @@ if __name__ == "__main__":
     input_size = 10
     output_size = 10
     mem_size = 128
-    mem_width = 10
+    mem_width = 20
     controller_size = 100
     P = Parameters()
+
     """
-
-
     head_size,head_activations = head.build(1, mem_width, 3)
 
     controller = feedforward.build_classifier(

@@ -6,7 +6,7 @@ from theano_toolkit import utils as U
 from theano_toolkit.parameters import Parameters
 import scipy
 import head
-
+from theano.printing import Print
 def cosine_sim(k, M):
     # k: batch_size x mem_width
     # M: batch_size x mem_size x mem_width
@@ -22,29 +22,36 @@ def build(mem_size, mem_width,
             np.arange(-(shift_width // 2), (shift_width // 2) + 1)
         ][::-1]
 
-    def shift_convolve(weight, shift):
+    def log_shift_convolve(log_weight, log_shift):
         # weight: batch_size x mem_size
         # shift:  batch_size x shift_width
-        log_shift = T.log(shift).dimshuffle(0,1,'x')
-        log_weight_windows = weight[:,shift_conv]
+        log_shift = log_shift.dimshuffle(0,1,'x')
+        log_weight_windows = log_weight[:,shift_conv]
         # batch_size x shift_width x mem_size
-        shifted_weight = T.sum(
-                T.exp(log_shift + log_weight_windows),
-                axis=1
+        const = T.maximum(
+                T.max(log_shift,axis=1),
+                T.max(log_weight_windows,axis=1)
             )
-        return shifted_weight
+        log_shifted_weight = T.log(T.sum(
+                T.exp(log_shift + log_weight_windows - const.dimshuffle(0,'x',1)),
+                axis=1
+            )) + const
+        return log_shifted_weight
 
-    def compute_memory_curr(M_prev, erase_head, add_head, weight):
+    def compute_memory_curr(M_prev, weights, erase_values, add_values):
         # M_prev:     batch_size x mem_size x mem_width
         # weight:     batch_size x mem_size
         # erase_head: batch_size x mem_width
         # add_head:   batch_size x mem_width
-        weight     = weight.dimshuffle(0,1,'x')
-        erase_head = erase_head.dimshuffle(0,'x',1)
-        add_head   = add_head.dimshuffle(0,'x',1)
+        weights    = [ w.dimshuffle(0,1,'x') for w in weights ]
 
-        M_erased = M_prev * (1 - (weight * erase_head))
-        M_curr   = M_erased + (weight * add_head)
+        add   = sum( w * a.dimshuffle(0,'x',1)
+                            for w,a in zip(weights,add_values) )
+        erase = sum( w * e.dimshuffle(0,'x',1)
+                            for w,e in zip(weights,erase_values) )
+
+        M_curr_ = M_prev * (1 - erase)
+        M_curr  = M_curr_ + add
 
         # output: batch_size x mem_size x mem_width
         return M_curr
@@ -64,36 +71,55 @@ def build(mem_size, mem_width,
         This function is best described by Figure 2 in the paper.
         """
         # 3.3.1 Focusing b Content
-        weight_c_ = T.addbroadcast(beta,1) * similarity(key, M)
-        weight_c_ = T.exp(weight_c_)
-        weight_c = weight_c_ / T.sum(weight_c_,axis=1,keepdims=True)
+        log_weight_c_ = T.addbroadcast(beta,1) * similarity(key, M)
+        log_weight_c = T.log(head.softmax(log_weight_c_))
+        log_weight_c.name = 'log_weight_c'
 
         # 3.3.2 Focusing by Location
-        g = T.addbroadcast(g,1)
-        weight_g = g * weight_c + (1 - g) * weight_prev
+        g = (1-1e-5) * T.addbroadcast(g,1) + 1e-5 * 0.5
+        log_weight_prev = T.log(weight_prev)
+        log_weight_prev.name = 'log_weight_prev'
+        lwp = T.log(1 - g)
+        lwp.name = 'log_1_g'
+        weight_g = T.exp(T.log(g) + log_weight_c) +\
+                    T.exp(lwp + log_weight_prev)
 
-        weight_shifted = shift_convolve(weight_g, shift)
-        log_weight_sharp = T.addbroadcast(gamma,1) * T.log(weight_shifted)
-        weight_curr = head.softmax(log_weight_sharp) 
+
+        log_weight_shifted = log_shift_convolve(T.log(weight_g), T.log(shift))
+        log_weight_shifted.name = 'log_weight_shifted'
+        log_weight_sharp = T.addbroadcast(gamma,1) * log_weight_shifted
+        weight_curr = head.softmax(log_weight_sharp)
 
         return weight_curr
 
-    def ntm_step(weight_prev,M_prev,heads):
-        read_prev = compute_read(M_prev, weight_prev)
-        weight_inter, M_inter = weight_prev, M_prev
-        for head in heads:
-            erase = head["erase"]
-            add   = head["add"]
-            weight_inter = compute_weight_curr(
-                    weight_prev=weight_inter,
-                    M=M_inter,
-                    key=head["key"],
-                    beta=head["beta"],
-                    g=head["g"],
-                    shift=head["shift"],
-                    gamma=head["gamma"]
-                )
-            M_inter = compute_memory_curr(M_inter, erase, add, weight_inter)
-        weight_curr, M_curr = weight_inter, M_inter
-        return M_curr, weight_curr, read_prev
+    def ntm_step(M_prev, heads, weights_prev):
+        weights_curr = []
+        for (read_weight_prev, write_weight_prev), head in zip(weights_prev,heads):
+            write_weight_curr = compute_weight_curr(
+                            weight_prev=write_weight_prev,
+                            M=M_prev,
+                            key=head["write_key"],
+                            beta=head["write_beta"],
+                            g=head["write_g"],
+                            shift=head["write_shift"],
+                            gamma=head["write_gamma"]
+                        )
+
+            read_weight_curr = compute_weight_curr(
+                            weight_prev=write_weight_prev,
+                            M=M_prev,
+                            key=head["read_key"],
+                            beta=head["read_beta"],
+                            g=head["read_g"],
+                            shift=head["read_shift"],
+                            gamma=head["read_gamma"]
+                        )
+            weights_curr.append((read_weight_curr,write_weight_curr))
+
+        M_curr = compute_memory_curr(M_prev,
+                weights=[ w for _,w in weights_curr ],
+                add_values=[ head["write_add"] for head in heads ],
+                erase_values=[ head["write_erase"] for head in heads ]
+            )
+        return M_curr, weights_curr
     return ntm_step

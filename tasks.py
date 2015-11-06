@@ -12,20 +12,20 @@ def copy(batch_size, sequence_length, input_size):
         ).astype(np.int8)
 
     input_sequences = np.zeros(
-            (batch_size, sequence_length * 2 + 1, input_size + 1),
+           (batch_size, sequence_length * 2 + 2, input_size + 2),
             dtype=np.int8
         )
 
     output_sequences = np.zeros(
-            (batch_size, sequence_length * 2 + 1, input_size + 1),
+            (batch_size, sequence_length * 2 + 2, input_size + 2),
             dtype=np.int8
         )
 
-    input_sequences[:, :sequence_length, :-1] = sequences
-    input_sequences[:, sequence_length, -1] = 1
-    output_sequences[:, sequence_length + 1:, :-1] = sequences
+    input_sequences[:, 1:sequence_length+1, :-2] = sequences
+    input_sequences[:, 0, -2] = 1
+    input_sequences[:, sequence_length + 1, -1] = 1
+    output_sequences[:, sequence_length + 2:, :-2] = sequences
     return input_sequences, output_sequences
-
 
 def repeat_copy(input_size, max_size, num_repeats):
     sequence_length = max_size
