@@ -46,29 +46,34 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
         memory_init = P.memory_init
         batch_size = X.shape[0]
         batch_size.name = 'batch_size'
-        batch_memory_init = T.alloc(memory_init,batch_size,mem_size,mem_width)
+        ones = T.ones_like(X[:,0,0])
+        batch_memory_init = memory_init * ones.dimshuffle(0,'x','x')
         batch_memory_init.name = 'batch_memory_init'
+        
         import head
         batch_weight_inits = [
                 (
-                    T.alloc(head.softmax(r),batch_size,mem_size),
-                    T.alloc(head.softmax(w),batch_size,mem_size)
+                    head.softmax(r) * ones.dimshuffle(0,'x'),
+                    head.softmax(w) * ones.dimshuffle(0,'x')
                 ) for r,w in weight_init_params ]
-        for r,w in batch_weight_inits:
-            r.name = 'read'
-            w.name = 'write'
-
 
         def step(X,M_prev,*heads):
+            X.name = 'x[t]'
             # weights [ batch_size x mem_size ]
             # M_prev  [ batch_size x mem_size x mem_width ]
             weights_prev = zip(heads[0*head_count:1*head_count],
                                heads[1*head_count:2*head_count])
+            for r,w in weights_prev:
+                r.name = 'read_prev'
+                w.name = 'write_prev'
+
+
             reads_prev = [ T.sum(r.dimshuffle(0,1,'x') * M_prev,axis=1) 
                                 for r,_ in weights_prev ]
 
             heads, output = controller([X] + reads_prev)
             M_curr, weights_curr = ntm_step(M_prev, heads, weights_prev)
+            
             return [ M_curr ] + \
                    [ r for r,_ in weights_curr ] +\
                    [ w for _,w in weights_curr ] +\
@@ -83,7 +88,6 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
                         [ None ]
             )
         outputs = scan_outs[-1]
-        print outputs.ndim
         return outputs.dimshuffle(1,0,2)
     return process
 

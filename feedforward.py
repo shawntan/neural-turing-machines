@@ -40,7 +40,7 @@ def build_classifier(
 
     output = build_transform(
         P,"%s_output"%name,hidden_sizes[-1],output_size,
-        initial_weights=initial_weights,
+        initial_weights=lambda x,y: 0.001 * np.random.randn(x,y),
         activation=output_activation)
 
     def classify(Xs):

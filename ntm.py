@@ -10,9 +10,10 @@ from theano.printing import Print
 def cosine_sim(k, M):
     # k: batch_size x mem_width
     # M: batch_size x mem_size x mem_width
-    k_unit = k / (T.sqrt(T.sum(T.sqr(k),axis=1,keepdims=True)) + 1e-5)
-    M_unit = M / (T.sqrt(T.sum(T.sqr(M),axis=2,keepdims=True)) + 1e-5)
-    batch_sim = T.sum(k_unit.dimshuffle(0,'x',1) * M_unit, axis=2)
+    k = k.dimshuffle(0,'x',1)
+    dot_prod = T.sum(k * M,axis=2)
+    norm_prod = T.sqrt(T.sum(T.sqr(k),axis=2)) * T.sqrt(T.sum(T.sqr(M),axis=2)) + 1e-5
+    batch_sim = dot_prod / norm_prod
     return batch_sim
 
 def build(mem_size, mem_width,

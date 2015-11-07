@@ -24,16 +24,15 @@ def make_functions(
     process = model.build(P, 
             input_size, output_size, mem_size, mem_width, hidden_sizes[0])
     outputs = process(T.cast(input_seqs,'float32'))
+    outputs.name = 'outputs'
     predicted_seqs = T.nnet.sigmoid(outputs)
     output_length = input_seqs.shape[1] // 2
     
     Y = output_seqs[:,-output_length:,:-2]
     Y_hat = predicted_seqs[:,-output_length:,:-2]
 
-    cross_entropy = T.mean(T.sum(
-            T.nnet.binary_crossentropy((1 - 1e-3) * Y_hat + 1e-3 * 0.5,Y),
-            axis=(1,2)
-        ))
+    cross_entropy = T.mean(
+            T.nnet.binary_crossentropy((1 - 1e-3) * Y_hat + 1e-3 * 0.5,Y))
     bits_loss = -T.sum(Y * T.log2(Y_hat) + (1 - Y) * T.log2(1 - Y_hat))
 
     print P.parameter_count()
@@ -52,15 +51,26 @@ def make_functions(
     start_time = time.time()
     print "Compiling function",
 
+    def detect_nan(i, node, fn):
+        for output in fn.outputs:
+            if (not isinstance(output[0], np.random.RandomState) and
+                np.isnan(output[0]).any()):
+                print '*** NaN detected ***'
+                theano.printing.debugprint(node)
+                print 'Inputs : %s' % [input[0] for input in fn.inputs]
+                print 'Outputs: %s' % [(output[0],output[0].shape) for output in fn.outputs]
+                #break
+                raise Exception('NaN DETECTED.')
+
 
     train = theano.function(
             inputs=[input_seqs, output_seqs],
-            outputs=cross_entropy/output_length, #[ d for _,d in sq_deltas ],#
+            outputs=cross_entropy, #[ d for _,d in sq_deltas ],#
             updates=updates.rmsprop(
                 params, grads,
                 learning_rate=1e-4
             ),
-            mode=NanGuardMode(nan_is_error=True)
+#            mode=theano.compile.MonitorMode(post_func=detect_nan)
         )
 
     test = theano.function(
