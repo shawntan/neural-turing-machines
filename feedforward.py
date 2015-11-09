@@ -24,6 +24,7 @@ def build_classifier(
         P, name,
         input_sizes, hidden_sizes, output_size,
         initial_weights=initial_weights,
+        output_initial_weights=lambda x,y: np.zeros(x,y),
         activation=T.nnet.sigmoid,
         output_activation=T.nnet.softmax):
 
@@ -40,7 +41,7 @@ def build_classifier(
 
     output = build_transform(
         P,"%s_output"%name,hidden_sizes[-1],output_size,
-        initial_weights=lambda x,y: 0.001 * np.random.randn(x,y),
+        initial_weights=output_initial_weights,
         activation=output_activation)
 
     def classify(Xs):

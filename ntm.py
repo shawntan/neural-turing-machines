@@ -7,6 +7,7 @@ from theano_toolkit.parameters import Parameters
 import scipy
 import head
 from theano.printing import Print
+from theano_toolkit import ops
 def cosine_sim(k, M):
     # k: batch_size x mem_width
     # M: batch_size x mem_size x mem_width
@@ -29,14 +30,7 @@ def build(mem_size, mem_width,
         log_shift = log_shift.dimshuffle(0,1,'x')
         log_weight_windows = log_weight[:,shift_conv]
         # batch_size x shift_width x mem_size
-        const = T.maximum(
-                T.max(log_shift,axis=1),
-                T.max(log_weight_windows,axis=1)
-            )
-        log_shifted_weight = T.log(T.sum(
-                T.exp(log_shift + log_weight_windows - const.dimshuffle(0,'x',1)),
-                axis=1
-            )) + const
+        log_shifted_weight = ops.log_sum_exp(log_shift + log_weight_windows,axis=1)
         return log_shifted_weight
 
     def compute_memory_curr(M_prev, weights, erase_values, add_values):
@@ -72,25 +66,24 @@ def build(mem_size, mem_width,
         This function is best described by Figure 2 in the paper.
         """
         # 3.3.1 Focusing b Content
-        log_weight_c_ = T.addbroadcast(beta,1) * similarity(key, M)
-        log_weight_c = T.log(head.softmax(log_weight_c_))
-        log_weight_c.name = 'log_weight_c'
+        score_c = T.addbroadcast(beta,1) * similarity(key, M)
+        log_weight_c  = ops.log_softmax(score_c)
+        # log_weight_c: batch_size x mem_size
+
 
         # 3.3.2 Focusing by Location
-        g = (1-1e-5) * T.addbroadcast(g,1) + 1e-5 * 0.5
-        log_weight_prev = T.log(weight_prev)
+        g = (1 - 1e-8) * T.addbroadcast(g,1) + 1e-8 * 0.5
+        log_weight_prev = T.log((1 - 1e-8) * weight_prev +\
+                1e-8 * (1/T.cast(weight_prev.shape[1],'float32')))
         log_weight_prev.name = 'log_weight_prev'
-        lwp = T.log(1 - g)
-        lwp.name = 'log_1_g'
-        weight_g = T.exp(T.log(g) + log_weight_c) +\
-                    T.exp(lwp + log_weight_prev)
-
-
-        log_weight_shifted = log_shift_convolve(T.log(weight_g), T.log(shift))
+        log_weight_g = ops.log_add(
+                        T.log(g) + log_weight_c,
+                        T.log(1 - g) + log_weight_prev
+                    )
+        log_weight_shifted = log_shift_convolve(log_weight_g, T.log(shift))
         log_weight_shifted.name = 'log_weight_shifted'
         log_weight_sharp = T.addbroadcast(gamma,1) * log_weight_shifted
-        weight_curr = head.softmax(log_weight_sharp)
-
+        weight_curr = ops.softmax(log_weight_sharp)
         return weight_curr
 
     def ntm_step(M_prev, heads, weights_prev):

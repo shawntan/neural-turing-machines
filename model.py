@@ -11,7 +11,7 @@ import feedforward
 import ntm
 def build(P, input_size, output_size, mem_size, mem_width, controller_size):
     head_count = 1
-    P.memory_init = 0.001 * np.random.randn(mem_size,mem_width)  #2 * (np.random.rand(mem_size, mem_width) - 0.5
+    P.memory_init = np.random.randn(mem_size,mem_width)  #2 * (np.random.rand(mem_size, mem_width) - 0.5
 
     weight_init_params = []
     for i in xrange(head_count):
@@ -30,26 +30,32 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
     def controller_activation(X):
         return (head_activations(X[:,:heads_size]),X[:,heads_size:])
 
+    def output_inits(ins,outs):
+        init = feedforward.initial_weights(ins,outs)
+        init[:,heads_size:] = 0
+        return init
+
     controller = feedforward.build_classifier(
             P, "controller",
             input_sizes=[input_size,mem_width],
             hidden_sizes=[controller_size],
             output_size=heads_size + output_size,
-            activation=T.nnet.sigmoid,
-            output_activation=controller_activation
+            activation=T.tanh,
+            output_activation=controller_activation,
+            output_initial_weights=output_inits
         )
 
     ntm_step = ntm.build(mem_size, mem_width)
 
     def process(X):
         # input_sequences: batch_size x sequence_length x input_size
-        memory_init = P.memory_init
+        memory_init = P.memory_init / T.sqrt(T.sum(T.sqr(P.memory_init),axis=1,keepdims=True))
         batch_size = X.shape[0]
         batch_size.name = 'batch_size'
         ones = T.ones_like(X[:,0,0])
-        batch_memory_init = memory_init * ones.dimshuffle(0,'x','x')
+        batch_memory_init = T.alloc(memory_init,batch_size,mem_size,mem_width)
         batch_memory_init.name = 'batch_memory_init'
-        
+
         import head
         batch_weight_inits = [
                 (
@@ -73,7 +79,7 @@ def build(P, input_size, output_size, mem_size, mem_width, controller_size):
 
             heads, output = controller([X] + reads_prev)
             M_curr, weights_curr = ntm_step(M_prev, heads, weights_prev)
-            
+
             return [ M_curr ] + \
                    [ r for r,_ in weights_curr ] +\
                    [ w for _,w in weights_curr ] +\

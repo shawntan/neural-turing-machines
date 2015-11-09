@@ -14,11 +14,11 @@ def build(head_count, mem_width, shift_width):
                 ("read_key",    mem_width, T.tanh),
                 ("write_shift", shift_width, softmax),
                 ("write_beta",  1, T.nnet.softplus),
-                ("write_gamma", 1, T.nnet.softplus),
+                ("write_gamma", 1, lambda x:T.nnet.softplus(x) + 1),
                 ("write_g",     1, T.nnet.sigmoid),
                 ("read_shift",  shift_width, softmax),
                 ("read_beta",   1, T.nnet.softplus),
-                ("read_gamma",  1, T.nnet.softplus),
+                ("read_gamma",  1, lambda x:T.nnet.softplus(x) + 1),
                 ("read_g",      1, T.nnet.sigmoid), ]
     head_size = sum(w for _,w,_ in outputs)
     total_size = head_size * head_count
