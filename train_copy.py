@@ -43,7 +43,8 @@ def make_functions(
     print "Computing gradients",
     grads = T.grad(cost, wrt=params)
     clip_length = 10
-    grads = [ T.clip(g,-clip_length,clip_length) for g in grads ]
+    clipper = updates.clip(np.float32(clip_length))
+    grads = clipper(grads)
     print "Done. (%0.3f s)"%(time.time() - start_time)
     start_time = time.time()
     print "Compiling function",
@@ -100,7 +101,7 @@ if __name__ == "__main__":
             if nan_counter < 20:
                 P.load('model.pkl')
                 P_learn.load('learn.pkl')
-                pprint(zip(names_,score[1:]))
+#                pprint(zip(names_,score[1:]))
             else:
                 print "Too many nans."
                 exit()
