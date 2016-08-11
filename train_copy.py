@@ -43,21 +43,21 @@ def make_functions(
     print "Computing gradients",
     grads = T.grad(cost, wrt=params)
     clip_length = 10
-    clipper = updates.clip(np.float32(clip_length))
-    grads = clipper(grads)
+    grads = updates.clip_deltas(grads, np.float32(clip_length))
+
     print "Done. (%0.3f s)"%(time.time() - start_time)
     start_time = time.time()
     print "Compiling function",
     P_learn = Parameters()
-
-    train = theano.function(
-            inputs=[input_seqs, output_seqs],
-            outputs=cross_entropy,
-            updates=updates.rmsprop(
+    update_pairs = updates.rmsprop(
                 params, grads,
                 learning_rate=1e-4,
                 P=P_learn
-            ),
+            )
+    train = theano.function(
+            inputs=[input_seqs, output_seqs],
+            outputs=cross_entropy,
+            updates=update_pairs,
         )
 
     test = theano.function(
