@@ -55,3 +55,4 @@ target/
 
 .*.swp
 *~
+*.pkl
