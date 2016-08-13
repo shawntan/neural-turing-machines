@@ -14,8 +14,14 @@ from theano.compile.nanguardmode import NanGuardMode
 from pprint import pprint
 np.random.seed(1234)
 
-def safe_softplus(x):
-    return T.switch(x > 10,x,T.nnet.softplus(x))
+width = 8
+max_sequences = 100000
+max_sequence_length = 20
+batch_size = 5
+validation_frequency = 100
+clip_length = 5
+
+
 def make_functions(
         input_size, output_size, mem_size, mem_width, hidden_sizes=[100]):
 
@@ -25,7 +31,7 @@ def make_functions(
     output_seqs = T.btensor3('output_sequences')
 
     P = Parameters()
-    process = model.build(P, 
+    process = model.build(P,
             input_size, output_size, mem_size, mem_width, hidden_sizes[0])
     outputs = process(T.cast(input_seqs,'float32'))
     output_length = (input_seqs.shape[1] - 2) // 2
@@ -38,22 +44,23 @@ def make_functions(
 
     params = P.values()
 
-    cost = cross_entropy + 1e-5 * sum(T.sum(T.sqr(w)) for w in params)
+    cost = cross_entropy # + 1e-5 * sum(T.sum(T.sqr(w)) for w in params)
 
     print "Computing gradients",
     grads = T.grad(cost, wrt=params)
-    clip_length = 10
     grads = updates.clip_deltas(grads, np.float32(clip_length))
 
     print "Done. (%0.3f s)"%(time.time() - start_time)
     start_time = time.time()
     print "Compiling function",
     P_learn = Parameters()
+
     update_pairs = updates.rmsprop(
                 params, grads,
                 learning_rate=1e-4,
                 P=P_learn
             )
+
     train = theano.function(
             inputs=[input_seqs, output_seqs],
             outputs=cross_entropy,
@@ -71,13 +78,6 @@ def make_functions(
 
 if __name__ == "__main__":
     model_out = sys.argv[1]
-    width = 8
-    max_sequences = 100000
-    max_sequence_length = 20
-    batch_size = 16
-
-    validation_frequency = 1000
-
     P, P_learn, train, test = make_functions(
             input_size=width + 2,
             mem_size=128,
@@ -90,21 +90,10 @@ if __name__ == "__main__":
          return sum(test(i,o) for i,o in test_set) / (10 * len(test_set))
 
     best_score = validation_test()
-    nan_counter = 0
     for counter in xrange(max_sequences):
         length = np.random.randint(max_sequence_length) + 1
         i, o = tasks.copy(batch_size, length, width)
         score = train(i, o)
-        if np.isnan(score):
-            print "NaN"
-            nan_counter += 1
-            if nan_counter < 20:
-                P.load('model.pkl')
-                P_learn.load('learn.pkl')
-#                pprint(zip(names_,score[1:]))
-            else:
-                print "Too many nans."
-                exit()
 
         if (counter + 1) % validation_frequency == 0:
             validation_score = validation_test()
