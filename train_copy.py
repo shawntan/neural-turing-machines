@@ -17,9 +17,9 @@ np.random.seed(1234)
 width = 8
 max_sequences = 100000
 max_sequence_length = 20
-batch_size = 5
+batch_size = 20
 validation_frequency = 100
-clip_length = 5
+clip_length = 1
 
 
 def make_functions(
